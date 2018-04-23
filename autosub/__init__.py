@@ -274,7 +274,6 @@ def generate_subtitles(
     api_key=None,
 ):
     regions = find_speech_regions(audio_filename)
-
     is_parallel = concurrency > 0
     if is_parallel:
         pool = multiprocessing.Pool(concurrency)
@@ -297,6 +296,9 @@ def generate_subtitles(
                         confidence = response[1]
                         transcripts.append(transcript)
                         confidences.append(confidence)
+                    else:
+                        transcripts.append('')
+                        confidences.append(0)
             else:
                 for region in regions:
                     caption, confidence = recognizer(converter(region))
