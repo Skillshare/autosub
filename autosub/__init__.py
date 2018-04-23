@@ -138,7 +138,7 @@ def which(program):
     return None
 
 
-def extract_audio(filename, channels=1, rate=44100, s3=True):
+def extract_audio(filename, channels=1, rate=16000, s3=True):
     temp = tempfile.NamedTemporaryFile(suffix='.wav', delete=False)
     if not s3:
         if not os.path.isfile(filename):
