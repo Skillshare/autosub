@@ -17,11 +17,11 @@ from autosub.constants import (
 )
 from autosub.formatters import FORMATTERS
 
-DEFAULT_SUBTITLE_FORMAT = 'srt'
-DEFAULT_CONCURRENCY = int(os.environ.get('SKPATION_CORES', 0))
+DEFAULT_SUBTITLE_FORMAT = 'vtt'
+DEFAULT_CONCURRENCY = int(os.environ.get('SKPATION_CORES', 4))
 DEFAULT_SRC_LANGUAGE = 'en'
 DEFAULT_DST_LANGUAGE = 'en'
-EXECUTABLE = os.environ.get('FFMPEG_PATH', 'bin/ffmpeg')
+EXECUTABLE = os.environ.get('FFMPEG_PATH', 'ffmpeg')
 
 
 def percentile(arr, percent):
@@ -315,7 +315,7 @@ def generate_subtitles(
             raise
 
     timed_subtitles = [(r, t) for r, t in zip(regions, transcripts) if t]
-    timed_confidences = [(r, c) for r, c in zip(regions, confidences)]
+    timed_confidences = [(r, c) for r, c in zip(regions, confidences) if c]
     pool.close()
     return timed_subtitles, timed_confidences
 

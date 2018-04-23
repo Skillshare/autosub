@@ -21,6 +21,10 @@ def srt_formatter(subtitles, show_before=0, show_after=0):
 
 def vtt_formatter(subtitles, show_before=0, show_after=0):
     text = srt_formatter(subtitles, show_before, show_after)
+    # remove the line number stuff
+    lines = text.splitlines()
+    good_lines = [l for i, l in enumerate(lines) if i % 4 != 0]
+    text = '\n'.join(good_lines)
     text = 'WEBVTT\n\n' + text.replace(',', '.')
     return text
 
