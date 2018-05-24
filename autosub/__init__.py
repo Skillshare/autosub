@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import audioop
+import aiohttp
 import base64
 import json
 import math
@@ -8,6 +9,7 @@ import os
 import requests
 import subprocess
 import tempfile
+import ujson
 import wave
 
 from autosub.constants import (
@@ -63,39 +65,34 @@ class SpeechRecognizer(object):
         self.rate = rate
         self.api_key = api_key
         self.retries = retries
+        self.url = GOOGLE_SPEECH_API_URL + '?key={}'.format(self.api_key)
 
-    def __call__(self, audio):
-        try:
-            for i in range(self.retries):
-                url = GOOGLE_SPEECH_API_URL + '?key={}'.format(self.api_key)
-                body = {
-                    "audio": {
-                        "content": audio
-                    },
-                    "config": {
-                        "enableAutomaticPunctuation": True,
-                        "encoding": "FLAC",
-                        "languageCode": "en-US"
-                    }
-                }
-                try:
-                    resp = requests.post(url, json=body)
-                except requests.exceptions.ConnectionError:
-                    continue
 
-                for key, value in resp.json().items():
-                    try:
-                        alt = value[0]['alternatives'][0]
-                        line = alt['transcript']
-                        confidence = alt['confidence']
-                        return line[:1].upper() + line[1:], confidence
-                    except Exception as e:
-                        # no result
-                        continue
+    def extract(self, response):
+        for key, value in response.items():
+            try:
+                alt = value[0]['alternatives'][0]
+                line = alt['transcript']
+                confidence = alt['confidence']
+                return line[:1].upper() + line[1:], confidence
+            except Exception as e:
+                # no result
+                continue
 
-        except KeyboardInterrupt:
-            return
-
+    async def fetch(self, audio):
+        body = {
+            "audio": {
+                "content": audio
+            },
+            "config": {
+                "enableAutomaticPunctuation": True,
+                "encoding": "FLAC",
+                "languageCode": "en-US"
+            }
+        }
+        async with aiohttp.ClientSession(json_serialize=ujson.dumps) as session:
+            async with session.post(self.url, json=body) as response:
+                return await response.json()
 
 def which(program):
     def is_exe(file_path):
@@ -166,7 +163,7 @@ def find_speech_regions(filename, frame_width=4096, min_region_size=0.5, max_reg
     return regions
 
 
-def generate_subtitles(
+async def generate_subtitles(
         audio_filename,
         concurrency=DEFAULT_CONCURRENCY,
         src_language=DEFAULT_SRC_LANGUAGE,
@@ -190,10 +187,10 @@ def generate_subtitles(
                 for i, extracted_region in enumerate(pool.imap(converter, regions)):
                     extracted_regions.append(extracted_region)
 
-                for i, response in enumerate(pool.imap(recognizer, extracted_regions)):
+                for i, audio in enumerate(extracted_regions):
+                    response = await recognizer.fetch(audio)
                     if response:
-                        transcript = response[0]
-                        confidence = response[1]
+                        transcript, confidence = recognizer.extract(response)
                         transcripts.append(transcript)
                         confidences.append(confidence)
                     else:
